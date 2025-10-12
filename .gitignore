@@ -4,7 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
+# package-lock.json
 # ↑ If you want reproducible builds, commit your lockfile and remove this line.
 
 # Build output
