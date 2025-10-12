@@ -1,0 +1,261 @@
+// src/config/permissions.ts
+
+
+
+/** =========================
+ *  Atomic permission keys
+ *  ========================= */
+export const PERMISSIONS = {
+  /* Users */
+  USER_CREATE: "user.create",
+  USER_READ: "user.read",
+  USER_UPDATE: "user.update",
+  USER_DELETE: "user.delete",
+  USER_TOGGLE_ACTIVE: "user.toggleActive",
+
+  /* Roles / RBAC */
+  ROLE_READ: "role.read",
+  ROLE_CREATE: "role.create",
+  ROLE_UPDATE: "role.update",
+  ROLE_DELETE: "role.delete",
+
+  /* Activity stream */
+  ACTIVITY_READ: "activity.read",
+
+  /* Notifications */
+  NOTIFICATION_READ: "notification.read",
+  NOTIFICATION_MARK_READ: "notification.markRead",
+  NOTIFICATION_MARK_ALL: "notification.markAll",
+
+  /* Events */
+  EVENT_CREATE: "event.create",
+  EVENT_READ: "event.read",
+  EVENT_UPDATE: "event.update",
+  EVENT_DELETE: "event.delete",
+  EVENT_LIKE: "event.like", // like/unlike
+
+  /* Comments (on events) */
+  COMMENT_CREATE: "comment.create",
+  COMMENT_READ: "comment.read",
+  COMMENT_UPDATE_OWN: "comment.update.own",
+  COMMENT_DELETE_OWN: "comment.delete.own",
+  COMMENT_DELETE_ANY: "comment.delete.any",
+
+  /* Attendance (local scope) */
+  ATTENDANCE_CREATE: "attendance.create",
+  ATTENDANCE_READ: "attendance.read",
+  ATTENDANCE_UPDATE: "attendance.update",
+  ATTENDANCE_DELETE: "attendance.delete",
+  ATTENDANCE_SUMMARY: "attendance.summary",
+  ATTENDANCE_TIMESERIES: "attendance.timeseries",
+  ATTENDANCE_WEEKLY: "attendance.weekly",
+  ATTENDANCE_EXPORT: "attendance.export",
+
+  /* Attendance (admin/organization-wide analytics) */
+  ATTENDANCE_ADMIN_SUMMARY: "attendance.admin.summary",
+  ATTENDANCE_ADMIN_TIMESERIES: "attendance.admin.timeseries",
+  ATTENDANCE_ADMIN_LEADERBOARD: "attendance.admin.leaderboard",
+
+  /* Members */
+  MEMBER_CREATE: "member.create",
+  MEMBER_READ: "member.read",
+  MEMBER_UPDATE: "member.update",
+  MEMBER_DELETE: "member.delete",
+  MEMBER_UPLOAD: "member.upload",                 // /members/upload
+  MEMBER_TEMPLATE_DOWNLOAD: "member.template",    // /members/template
+  MEMBER_INVITE: "member.invite",                 // /members/invite
+  MEMBER_STATS: "member.stats",                   // /members/stats
+  MEMBER_LEADERS: "member.leaders",               // /members/leaders
+  MEMBER_BIRTHDAYS: "member.birthdays",           // /members/birthdays/:month
+  MEMBER_ANNIVERSARIES: "member.anniversaries",   // /members/anniversaries/:month
+  MEMBER_BY_CHURCH: "member.byChurch",            // /members/church/:churchId
+
+  /* Volunteer / Ministry Groups */
+  GROUP_CREATE: "group.create",
+  GROUP_READ: "group.read",
+  GROUP_UPDATE: "group.update",
+  GROUP_DELETE: "group.delete",
+
+  /* Organization entities */
+  CHURCH_CREATE: "church.create",
+  CHURCH_READ: "church.read",
+  CHURCH_UPDATE: "church.update",
+  CHURCH_DELETE: "church.delete",
+
+  DISTRICT_CREATE: "district.create",
+  DISTRICT_READ: "district.read",
+  DISTRICT_UPDATE: "district.update",
+  DISTRICT_DELETE: "district.delete",
+
+  NATIONAL_CREATE: "national.create",
+  NATIONAL_READ: "national.read",
+  NATIONAL_UPDATE: "national.update",
+  NATIONAL_DELETE: "national.delete",
+  NATIONAL_READ_CHILDREN: "national.children.read", // /national/:id/districts|churches|overview
+
+ /* Pastors (directory & profile) */
+  PASTOR_CREATE: "pastor.create",
+  PASTOR_READ: "pastor.read",
+  PASTOR_UPDATE: "pastor.update",
+  PASTOR_DELETE: "pastor.delete",
+
+  /* Pastor Assignments (history, promotions, transfers, endings) */
+  PASTOR_ASSIGN_CREATE: "pastor.assign.create",   // create a new assignment row
+  PASTOR_ASSIGN_READ: "pastor.assign.read",       // list/read history
+  PASTOR_ASSIGN_UPDATE: "pastor.assign.update",   // edit/transfer/promotion/end
+  PASTOR_ASSIGN_DELETE: "pastor.assign.delete",   // remove a bad/duplicate row,
+} as const;
+
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+/** =========================
+ *  Default role -> permissions
+ *  (Scope is enforced separately)
+ *  ========================= */
+export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
+  /* All-powerful */
+  siteAdmin: Object.values(PERMISSIONS),
+
+  /* National leadership */
+  nationalPastor: [
+    // Users (read-only)
+    PERMISSIONS.USER_READ,
+
+    // Roles (read-only)
+    PERMISSIONS.ROLE_READ,
+
+    // Activity
+    PERMISSIONS.ACTIVITY_READ,
+
+    // Events
+    PERMISSIONS.EVENT_CREATE, PERMISSIONS.EVENT_READ, PERMISSIONS.EVENT_UPDATE, PERMISSIONS.EVENT_DELETE, PERMISSIONS.EVENT_LIKE,
+    PERMISSIONS.COMMENT_CREATE, PERMISSIONS.COMMENT_READ, PERMISSIONS.COMMENT_UPDATE_OWN, PERMISSIONS.COMMENT_DELETE_OWN,
+
+    // Attendance (local analytics)
+    PERMISSIONS.ATTENDANCE_READ, PERMISSIONS.ATTENDANCE_SUMMARY, PERMISSIONS.ATTENDANCE_TIMESERIES,
+    PERMISSIONS.ATTENDANCE_WEEKLY, PERMISSIONS.ATTENDANCE_EXPORT,
+
+    // Admin analytics across org
+    PERMISSIONS.ATTENDANCE_ADMIN_SUMMARY, PERMISSIONS.ATTENDANCE_ADMIN_TIMESERIES, PERMISSIONS.ATTENDANCE_ADMIN_LEADERBOARD,
+
+    // Members (read-heavy + ops)
+    PERMISSIONS.MEMBER_READ, PERMISSIONS.MEMBER_STATS, PERMISSIONS.MEMBER_LEADERS,
+    PERMISSIONS.MEMBER_BIRTHDAYS, PERMISSIONS.MEMBER_ANNIVERSARIES, PERMISSIONS.MEMBER_BY_CHURCH,
+
+    // Groups
+    PERMISSIONS.GROUP_READ,
+
+    // Org entities
+    PERMISSIONS.NATIONAL_READ, PERMISSIONS.NATIONAL_UPDATE, PERMISSIONS.NATIONAL_READ_CHILDREN,
+    PERMISSIONS.DISTRICT_READ, PERMISSIONS.CHURCH_READ,
+
+    // Pastors 
+    PERMISSIONS.PASTOR_READ,
+    PERMISSIONS.PASTOR_ASSIGN_READ,
+  ],
+
+  /* District leadership */
+  districtPastor: [
+    PERMISSIONS.USER_READ,
+    PERMISSIONS.ROLE_READ,
+    PERMISSIONS.ACTIVITY_READ,
+
+    PERMISSIONS.EVENT_CREATE, PERMISSIONS.EVENT_READ, PERMISSIONS.EVENT_UPDATE, PERMISSIONS.EVENT_DELETE, PERMISSIONS.EVENT_LIKE,
+    PERMISSIONS.COMMENT_CREATE, PERMISSIONS.COMMENT_READ, PERMISSIONS.COMMENT_UPDATE_OWN, PERMISSIONS.COMMENT_DELETE_OWN,
+
+    PERMISSIONS.ATTENDANCE_READ, PERMISSIONS.ATTENDANCE_SUMMARY, PERMISSIONS.ATTENDANCE_TIMESERIES,
+    PERMISSIONS.ATTENDANCE_WEEKLY, PERMISSIONS.ATTENDANCE_EXPORT,
+
+    PERMISSIONS.MEMBER_READ, PERMISSIONS.MEMBER_STATS, PERMISSIONS.MEMBER_LEADERS,
+    PERMISSIONS.MEMBER_BIRTHDAYS, PERMISSIONS.MEMBER_ANNIVERSARIES, PERMISSIONS.MEMBER_BY_CHURCH,
+
+    PERMISSIONS.GROUP_READ,
+
+    PERMISSIONS.DISTRICT_READ, PERMISSIONS.DISTRICT_UPDATE, PERMISSIONS.CHURCH_READ,
+
+    PERMISSIONS.PASTOR_READ,
+    PERMISSIONS.PASTOR_ASSIGN_READ,
+  ],
+
+  /* Local admins */
+  churchAdmin: [
+    // Users (full except delete)
+    PERMISSIONS.USER_READ, PERMISSIONS.USER_CREATE, PERMISSIONS.USER_UPDATE, PERMISSIONS.USER_TOGGLE_ACTIVE,
+
+    // Roles (read-only; cannot change site-wide policy)
+    PERMISSIONS.ROLE_READ,
+
+    // Activity
+    PERMISSIONS.ACTIVITY_READ,
+
+    // Events + comments
+    PERMISSIONS.EVENT_CREATE, PERMISSIONS.EVENT_READ, PERMISSIONS.EVENT_UPDATE, PERMISSIONS.EVENT_DELETE, PERMISSIONS.EVENT_LIKE,
+    PERMISSIONS.COMMENT_CREATE, PERMISSIONS.COMMENT_READ, PERMISSIONS.COMMENT_UPDATE_OWN, PERMISSIONS.COMMENT_DELETE_ANY,
+
+    // Attendance in church scope
+    PERMISSIONS.ATTENDANCE_CREATE, PERMISSIONS.ATTENDANCE_READ, PERMISSIONS.ATTENDANCE_UPDATE, PERMISSIONS.ATTENDANCE_DELETE,
+    PERMISSIONS.ATTENDANCE_SUMMARY, PERMISSIONS.ATTENDANCE_TIMESERIES, PERMISSIONS.ATTENDANCE_WEEKLY, PERMISSIONS.ATTENDANCE_EXPORT,
+
+    // Members in church scope
+    PERMISSIONS.MEMBER_CREATE, PERMISSIONS.MEMBER_READ, PERMISSIONS.MEMBER_UPDATE, PERMISSIONS.MEMBER_DELETE,
+    PERMISSIONS.MEMBER_UPLOAD, PERMISSIONS.MEMBER_TEMPLATE_DOWNLOAD, PERMISSIONS.MEMBER_INVITE,
+    PERMISSIONS.MEMBER_STATS, PERMISSIONS.MEMBER_LEADERS, PERMISSIONS.MEMBER_BIRTHDAYS, PERMISSIONS.MEMBER_ANNIVERSARIES,
+
+    // Groups
+    PERMISSIONS.GROUP_CREATE, PERMISSIONS.GROUP_READ, PERMISSIONS.GROUP_UPDATE, PERMISSIONS.GROUP_DELETE,
+
+    // Org entities (read-only)
+    PERMISSIONS.CHURCH_READ, PERMISSIONS.DISTRICT_READ, PERMISSIONS.NATIONAL_READ, PERMISSIONS.NATIONAL_READ_CHILDREN,
+
+    // Notifications
+    PERMISSIONS.NOTIFICATION_READ, PERMISSIONS.NOTIFICATION_MARK_READ, PERMISSIONS.NOTIFICATION_MARK_ALL,
+
+    // Pastors
+     PERMISSIONS.PASTOR_CREATE,
+    PERMISSIONS.PASTOR_READ,
+    PERMISSIONS.PASTOR_UPDATE,
+    // optional: allow delete if you want hard deletes from UI
+    // PERMISSIONS.PASTOR_DELETE,
+
+    PERMISSIONS.PASTOR_ASSIGN_CREATE,
+    PERMISSIONS.PASTOR_ASSIGN_READ,
+    PERMISSIONS.PASTOR_ASSIGN_UPDATE,
+  ],
+
+  /* Pastors */
+  pastor: [
+    PERMISSIONS.ACTIVITY_READ,
+
+    PERMISSIONS.EVENT_CREATE, PERMISSIONS.EVENT_READ, PERMISSIONS.EVENT_UPDATE, PERMISSIONS.EVENT_LIKE,
+    PERMISSIONS.COMMENT_CREATE, PERMISSIONS.COMMENT_READ, PERMISSIONS.COMMENT_UPDATE_OWN, PERMISSIONS.COMMENT_DELETE_OWN,
+
+    PERMISSIONS.ATTENDANCE_CREATE, PERMISSIONS.ATTENDANCE_READ, PERMISSIONS.ATTENDANCE_UPDATE,
+    PERMISSIONS.ATTENDANCE_SUMMARY, PERMISSIONS.ATTENDANCE_TIMESERIES, PERMISSIONS.ATTENDANCE_WEEKLY, PERMISSIONS.ATTENDANCE_EXPORT,
+
+    PERMISSIONS.MEMBER_READ, PERMISSIONS.MEMBER_CREATE, PERMISSIONS.MEMBER_UPDATE,
+    PERMISSIONS.MEMBER_STATS, PERMISSIONS.MEMBER_LEADERS,
+
+    PERMISSIONS.GROUP_READ,
+
+    PERMISSIONS.NOTIFICATION_READ, PERMISSIONS.NOTIFICATION_MARK_READ,
+
+    PERMISSIONS.CHURCH_READ, PERMISSIONS.DISTRICT_READ, PERMISSIONS.NATIONAL_READ,
+
+    PERMISSIONS.PASTOR_READ,
+    PERMISSIONS.PASTOR_ASSIGN_READ,
+  ],
+
+  /* Volunteers */
+  volunteer: [
+    PERMISSIONS.EVENT_READ, PERMISSIONS.EVENT_LIKE,
+    PERMISSIONS.COMMENT_CREATE, PERMISSIONS.COMMENT_READ, PERMISSIONS.COMMENT_UPDATE_OWN, PERMISSIONS.COMMENT_DELETE_OWN,
+
+    PERMISSIONS.ATTENDANCE_READ,
+
+    PERMISSIONS.MEMBER_READ,
+
+    PERMISSIONS.GROUP_READ,
+
+    PERMISSIONS.NOTIFICATION_READ,
+  ],
+};

@@ -1,0 +1,48 @@
+# Node / package managers
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+# ↑ If you want reproducible builds, commit your lockfile and remove this line.
+
+# Build output
+dist/
+coverage/
+.tmp/
+.tmp-*/
+.nyc_output/
+
+# Env & secrets
+.env
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# Logs & runtime
+*.log
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Uploads / cache (adjust if you persist uploads elsewhere)
+uploads/
+cache/
+
+# Docker (if used)
+docker-data/
