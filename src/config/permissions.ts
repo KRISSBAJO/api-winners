@@ -104,6 +104,16 @@ export const PERMISSIONS = {
   PASTOR_ASSIGN_READ: "pastor.assign.read",       // list/read history
   PASTOR_ASSIGN_UPDATE: "pastor.assign.update",   // edit/transfer/promotion/end
   PASTOR_ASSIGN_DELETE: "pastor.assign.delete",   // remove a bad/duplicate row,
+
+   // NEW: follow-up
+  FOLLOWUP_READ: "followup.read",
+  FOLLOWUP_CREATE: "followup.create",
+  FOLLOWUP_UPDATE: "followup.update",
+  FOLLOWUP_ASSIGN: "followup.assign",
+  FOLLOWUP_ADMIN: "followup.admin", // for cadence/templates mgmt, bulk ops
+
+  // (optional) messaging
+  MESSAGING_SEND: "messaging.send",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -152,6 +162,13 @@ export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
     // Pastors 
     PERMISSIONS.PASTOR_READ,
     PERMISSIONS.PASTOR_ASSIGN_READ,
+
+    // Follow up
+    PERMISSIONS.FOLLOWUP_READ,
+    PERMISSIONS.FOLLOWUP_CREATE,
+    PERMISSIONS.FOLLOWUP_UPDATE,
+    PERMISSIONS.FOLLOWUP_ASSIGN,
+    PERMISSIONS.MESSAGING_SEND,
   ],
 
   /* District leadership */
@@ -175,6 +192,12 @@ export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
 
     PERMISSIONS.PASTOR_READ,
     PERMISSIONS.PASTOR_ASSIGN_READ,
+
+    PERMISSIONS.FOLLOWUP_READ,
+    PERMISSIONS.FOLLOWUP_CREATE,
+    PERMISSIONS.FOLLOWUP_UPDATE,
+    PERMISSIONS.FOLLOWUP_ASSIGN,
+    PERMISSIONS.MESSAGING_SEND,
   ],
 
   /* Local admins */
@@ -211,7 +234,7 @@ export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
     PERMISSIONS.NOTIFICATION_READ, PERMISSIONS.NOTIFICATION_MARK_READ, PERMISSIONS.NOTIFICATION_MARK_ALL,
 
     // Pastors
-     PERMISSIONS.PASTOR_CREATE,
+    PERMISSIONS.PASTOR_CREATE,
     PERMISSIONS.PASTOR_READ,
     PERMISSIONS.PASTOR_UPDATE,
     // optional: allow delete if you want hard deletes from UI
@@ -220,6 +243,13 @@ export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
     PERMISSIONS.PASTOR_ASSIGN_CREATE,
     PERMISSIONS.PASTOR_ASSIGN_READ,
     PERMISSIONS.PASTOR_ASSIGN_UPDATE,
+
+    // Follow up
+    PERMISSIONS.FOLLOWUP_READ,
+    PERMISSIONS.FOLLOWUP_CREATE,
+    PERMISSIONS.FOLLOWUP_UPDATE,
+    PERMISSIONS.FOLLOWUP_ASSIGN,
+    PERMISSIONS.MESSAGING_SEND,
   ],
 
   /* Pastors */
@@ -243,6 +273,12 @@ export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
 
     PERMISSIONS.PASTOR_READ,
     PERMISSIONS.PASTOR_ASSIGN_READ,
+
+    PERMISSIONS.FOLLOWUP_READ,
+    PERMISSIONS.FOLLOWUP_CREATE,
+    PERMISSIONS.FOLLOWUP_UPDATE,
+    PERMISSIONS.FOLLOWUP_ASSIGN,
+    PERMISSIONS.MESSAGING_SEND,
   ],
 
   /* Volunteers */
@@ -257,5 +293,11 @@ export const ROLE_MATRIX: Record<string, PermissionKey[]> = {
     PERMISSIONS.GROUP_READ,
 
     PERMISSIONS.NOTIFICATION_READ,
+
+    PERMISSIONS.FOLLOWUP_READ,
+    PERMISSIONS.FOLLOWUP_CREATE,
+    PERMISSIONS.FOLLOWUP_UPDATE,
+    PERMISSIONS.FOLLOWUP_ASSIGN,
+    PERMISSIONS.MESSAGING_SEND,
   ],
 };
