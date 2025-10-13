@@ -1,5 +1,5 @@
 // src/middleware/scope.ts
-import type { AuthUser } from "./auth";
+import type { AuthUser } from "../types/express";
 
 /**
  * Build a MongoDB filter for org-scoped queries.
