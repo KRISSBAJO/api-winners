@@ -8,7 +8,8 @@ import nodemailer from "nodemailer";
 import type { AuthUser } from "../types/express";
 import { signSelfRegToken, verifySelfRegToken, type SelfRegPayload } from "../utils/selfRegToken";
 import { mailer } from "../utils/mailer";
-
+import { notifySafe } from "../realtime/notifySafe";
+import dotenv from "dotenv";
 /* ------------------------- helpers: scope & utils ------------------------- */
 
 const shortSchema = z.object({
@@ -104,12 +105,31 @@ function canWriteChurch(churchId: string, actor?: AuthUser) {
 export class MemberService {
   /** Create a member manually */
   async createMember(data: Partial<IMember>, actor?: AuthUser): Promise<IMember> {
-    if (!data.churchId) throw new Error("churchId is required");
-    if (!canWriteChurch(String(data.churchId), actor)) {
-      throw new Error("Forbidden");
-    }
-    return await Member.create(data);
+  if (!data.churchId) throw new Error("churchId is required");
+  if (!canWriteChurch(String(data.churchId), actor)) {
+    throw new Error("Forbidden");
   }
+  const doc = await Member.create(data);
+
+  // Fire-and-forget notification
+  notifySafe({
+    kind: "member",
+    title: "New member added",
+    message: `${doc.firstName} ${doc.lastName} was added to your church.`,
+    scope: "church",
+    scopeRef: String(doc.churchId),
+    actorId: actor?._id,
+    actorName: actor ? `${actor.firstName || ""} ${actor.lastName || ""}`.trim() : undefined,
+    link: `/dashboard/members/${doc._id}`, // URL in your app
+    activity: {
+      verb: "created",
+      churchId: String(doc.churchId),
+      target: { type: "member", id: String(doc._id), name: `${doc.firstName} ${doc.lastName}` },
+    },
+  });
+
+  return doc;
+}
 
   /** Get all members with optional filters (scope-aware) */
   async getMembers(filters: any = {}, actor?: AuthUser): Promise<IMember[]> {
@@ -215,29 +235,61 @@ export class MemberService {
   }
 
   /** Update member details (scope-aware) */
-  async updateMember(id: string, data: Partial<IMember>, actor?: AuthUser): Promise<IMember | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+ async updateMember(id: string, data: Partial<IMember>, actor?: AuthUser) {
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+  const current = await Member.findById(id).select("firstName lastName churchId");
+  if (!current) return null;
+  if (!canWriteChurch(String(current.churchId), actor)) throw new Error("Forbidden");
 
-    const current = await Member.findById(id).select("churchId");
-    if (!current) return null;
+  const updated = await Member.findByIdAndUpdate(id, data, { new: true });
 
-    if (!canWriteChurch(String(current.churchId), actor)) {
-      throw new Error("Forbidden");
-    }
+  notifySafe({
+    kind: "member",
+    title: "Member updated",
+    message: `${current.firstName} ${current.lastName} was updated.`,
+    scope: "church",
+    scopeRef: String(current.churchId),
+    actorId: actor?._id,
+    actorName: actor ? `${actor.firstName || ""} ${actor.lastName || ""}`.trim() : undefined,
+    link: `/dashboard/members/${id}`,
+    activity: {
+      verb: "updated",
+      churchId: String(current.churchId),
+      target: { type: "member", id: String(id), name: `${current.firstName} ${current.lastName}` },
+      meta: { fields: Object.keys(data || {}) }, // optional detail
+    },
+  });
 
-    return await Member.findByIdAndUpdate(id, data, { new: true });
-  }
+  return updated;
+}
 
   /** Delete a member (scope-aware) */
-  async deleteMember(id: string, actor?: AuthUser): Promise<boolean> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return false;
-    const current = await Member.findById(id).select("churchId");
-    if (!current) return false;
-    if (!canWriteChurch(String(current.churchId), actor)) throw new Error("Forbidden");
+async deleteMember(id: string, actor?: AuthUser): Promise<boolean> {
+  if (!mongoose.Types.ObjectId.isValid(id)) return false;
+  const current = await Member.findById(id).select("firstName lastName churchId");
+  if (!current) return false;
+  if (!canWriteChurch(String(current.churchId), actor)) throw new Error("Forbidden");
 
-    const result = await Member.findByIdAndDelete(id);
-    return !!result;
-  }
+  const result = await Member.findByIdAndDelete(id);
+
+  notifySafe({
+    kind: "member",
+    title: "Member removed",
+    message: `${current.firstName} ${current.lastName} was removed from the directory.`,
+    scope: "church",
+    scopeRef: String(current.churchId),
+    actorId: actor?._id,
+    actorName: actor ? `${actor.firstName || ""} ${actor.lastName || ""}`.trim() : undefined,
+    activity: {
+      verb: "deleted",
+      churchId: String(current.churchId),
+      target: { type: "member", id, name: `${current.firstName} ${current.lastName}` },
+    },
+  });
+
+  return !!result;
+}
+
 
   /** Members by church (scope-aware) */
   async getMembersByChurch(churchId: string, actor?: AuthUser): Promise<IMember[]> {
@@ -362,10 +414,25 @@ export class MemberService {
       }
     }
 
-    fs.unlinkSync(filePath); // delete temp file
-    return { successCount: success.length, failedCount: errors.length, errors };
-  }
+   fs.unlinkSync(filePath);
 
+  notifySafe({
+    kind: "member",
+    title: "Import completed",
+    message: `Imported ${success.length} member(s). ${errors.length} failed.`,
+    scope: "church",
+    scopeRef: String(churchId),
+    actorId: actor?._id,
+    actorName: actor ? `${actor.firstName || ""} ${actor.lastName || ""}`.trim() : undefined,
+    activity: {
+      verb: "imported",
+      churchId: String(churchId),
+      meta: { success: success.length, failed: errors.length },
+    },
+  });
+
+  return { successCount: success.length, failedCount: errors.length, errors };
+}
   /** Generate blank Excel template */
   async generateMemberTemplate(): Promise<Buffer> {
     const headers = [["First Name", "Last Name", "Email", "Phone", "Gender"]];
@@ -440,22 +507,37 @@ If you didn't expect this, you can ignore this message.`;
   }
 
   /** Create member from SHORT form */
-  async selfRegisterShort(token: string, body: unknown) {
-    const payload = verifySelfRegToken(token); // throws if invalid
-    const data = shortSchema.parse(body);
+ async selfRegisterShort(token: string, body: unknown) {
+  const payload = verifySelfRegToken(token);
+  const data = shortSchema.parse(body);
 
-    // prevent duplicate within same church (by email)
-    const existing = await Member.findOne({ email: payload.email, churchId: payload.churchId });
-    if (existing) throw new Error("Member already registered for this church");
+  const existing = await Member.findOne({ email: payload.email, churchId: payload.churchId });
+  if (existing) throw new Error("Member already registered for this church");
 
-    const created = await Member.create({
-      churchId: payload.churchId,
-      email: payload.email,
-      membershipStatus: "Active",
-      ...data,
-    });
-    return created;
-  }
+  const created = await Member.create({
+    churchId: payload.churchId,
+    email: payload.email,
+    membershipStatus: "Active",
+    ...data,
+  });
+
+  notifySafe({
+    kind: "member",
+    title: "New self-registration",
+    message: `${created.firstName} ${created.lastName} just registered.`,
+    scope: "church",
+    scopeRef: String(created.churchId),
+    link: `/dashboard/members/${created._id}`,
+    activity: {
+      verb: "self_registered",
+      churchId: String(created.churchId),
+      target: { type: "member", id: String(created._id), name: `${created.firstName} ${created.lastName}` },
+    },
+  });
+
+  return created;
+}
+
 
   /** Create (or update) from LONG form */
   async selfRegisterLong(token: string, body: any) {
