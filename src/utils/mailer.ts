@@ -1,44 +1,29 @@
-// src/utils/mailer.ts
 import nodemailer from "nodemailer";
 
-let transporter: nodemailer.Transporter | null = null;
-
-function getEnv(key: string) {
-  return process.env[key];
+function must(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env ${name}`);
+  return v;
 }
 
-function resolveSmtpConfig() {
-  const host = getEnv("SMTP_HOST") ?? getEnv("EMAIL_HOST");
-  const port = Number(getEnv("SMTP_PORT") ?? getEnv("EMAIL_PORT") ?? 587);
-  const user = getEnv("SMTP_USER") ?? getEnv("EMAIL_USER");
-  const pass = getEnv("SMTP_PASS") ?? getEnv("EMAIL_PASS");
-  const from =
-    getEnv("SMTP_FROM") ??
-    getEnv("EMAIL_FROM") ??
-    '"Dominion Connect" <no-reply@dominionconnect.com>';
-  const secure =
-    (getEnv("SMTP_SECURE") ?? "").toLowerCase() === "true" || port === 465;
+function makeTransporter() {
+  const host = must("EMAIL_HOST");      // e.g. smtp.gmail.com
+  const port = Number(process.env.EMAIL_PORT || 587);
+  const user = must("EMAIL_USER");      // Gmail address
+  const pass = must("EMAIL_PASS");      // 16-char Gmail App Password
+  const secure = port === 465;          // 465=true, 587=false
 
-  if (!host || !user || !pass) {
-    throw new Error(
-      "SMTP not configured: set SMTP_* or EMAIL_* envs (HOST, PORT, USER, PASS, FROM)"
-    );
-  }
-
-  return { host, port, user, pass, from, secure };
-}
-
-function getTransporter() {
-  if (!transporter) {
-    const cfg = resolveSmtpConfig();
-    transporter = nodemailer.createTransport({
-      host: cfg.host,
-      port: cfg.port,
-      secure: cfg.secure, // 465=true, 587=false (STARTTLS)
-      auth: { user: cfg.user, pass: cfg.pass },
-    });
-  }
-  return transporter;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    // make hangs obvious instead of “forever”
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+    requireTLS: !secure, // STARTTLS on 587
+  });
 }
 
 export async function mailer(
@@ -47,17 +32,17 @@ export async function mailer(
   text: string,
   html?: string
 ) {
-  const { from } = resolveSmtpConfig(); // will throw if misconfigured
-  const tx = getTransporter();
+  const from =
+    process.env.EMAIL_FROM || must("EMAIL_USER"); // From should match Gmail account
 
-  // Optional: verify once in dev
-  if (process.env.NODE_ENV !== "production") {
-    try {
-      await tx.verify();
-      // console.log("SMTP verified");
-    } catch (e) {
-      console.error("SMTP verify failed:", e);
-    }
+  const tx = makeTransporter();
+
+  // helpful diagnostics (runs once at start of request)
+  try {
+    await tx.verify();
+  } catch (e: any) {
+    console.error("SMTP verify failed:", e?.message || e);
+    throw new Error("Email service is not reachable/configured");
   }
 
   const info = await tx.sendMail({ from, to, subject, text, html });
