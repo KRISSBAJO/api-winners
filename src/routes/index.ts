@@ -12,6 +12,7 @@ import attendanceAdminRoutes from "./attendance.admin.routes";
 import roleRoutes from "./role.routes";
 import notificationRoutes from "./notification.routes";
 import pastorRoutes from "./pastor.routes";
+import followUpRoute from "./followup.routes";
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.use("/attendance/admin", attendanceAdminRoutes);
 router.use("/roles", roleRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/pastors", pastorRoutes);
+router.use("/followup", followUpRoute);
 
 
 export default router;
