@@ -1,50 +1,24 @@
+// src/utils/mailer.ts
 import nodemailer from "nodemailer";
 
-function must(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env ${name}`);
-  return v;
-}
-
-function makeTransporter() {
-  const host = must("EMAIL_HOST");      // e.g. smtp.gmail.com
-  const port = Number(process.env.EMAIL_PORT || 587);
-  const user = must("EMAIL_USER");      // Gmail address
-  const pass = must("EMAIL_PASS");      // 16-char Gmail App Password
-  const secure = port === 465;          // 465=true, 587=false
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
-    // make hangs obvious instead of “forever”
-    connectionTimeout: 15_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
-    requireTLS: !secure, // STARTTLS on 587
+export const mailer = async (to: string, subject: string, text: string, html?: string) => {
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER || process.env.EMAIL_USER,
+      pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
+    },
   });
-}
 
-export async function mailer(
-  to: string,
-  subject: string,
-  text: string,
-  html?: string
-) {
-  const from =
-    process.env.EMAIL_FROM || must("EMAIL_USER"); // From should match Gmail account
+  const info = await transporter.sendMail({
+    from: process.env.EMAIL_FROM || "Dominion Connect <no-reply@dominionconnect.com>",
+    to,
+    subject,
+    text,
+    html,
+  });
 
-  const tx = makeTransporter();
-
-  // helpful diagnostics (runs once at start of request)
-  try {
-    await tx.verify();
-  } catch (e: any) {
-    console.error("SMTP verify failed:", e?.message || e);
-    throw new Error("Email service is not reachable/configured");
-  }
-
-  const info = await tx.sendMail({ from, to, subject, text, html });
   console.log(`📧 Email sent: ${info.messageId}`);
-}
+};
