@@ -90,3 +90,7 @@ export const logAttempt = handle(async (req: Request) =>
 export const stats = handle(async (req: Request) =>
   followupService.stats(req.user as AuthUser)
 );
+
+export const listCadences = handle(async (_req: Request) =>
+  followupService.listCadences(_req.user as AuthUser)
+);

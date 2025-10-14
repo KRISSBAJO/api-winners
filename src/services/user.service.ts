@@ -289,3 +289,43 @@ export const updateUserAdmin = async (id: string, raw: Partial<IUser>, actor?: a
 
   return safe;
 };
+
+export const getUsersByChurch = async (
+  churchId: string,
+  actor?: any,
+  opts?: { q?: string; limit?: number; cursor?: string }
+) => {
+  if (!churchId) throw Object.assign(new Error("churchId is required"), { statusCode: 400 });
+
+  // scope guard: non-site must match own church
+  if (!isSite(actor) && String(actor?.churchId) !== String(churchId)) {
+    throw Object.assign(new Error("Forbidden: out of church scope"), { statusCode: 403 });
+  }
+
+  const lim = Math.min(Math.max(Number(opts?.limit ?? 30), 1), 100);
+  const q = (opts?.q ?? "").trim();
+  const cursor = opts?.cursor;
+
+  const filter: any = { churchId };
+  if (cursor) filter._id = { $gt: cursor };
+
+  if (q) {
+    filter.$or = [
+      { firstName: new RegExp(q, "i") },
+      { lastName:  new RegExp(q, "i") },
+      { email:     new RegExp(q, "i") },
+      { phone:     new RegExp(q, "i") },
+    ];
+  }
+
+  const docs = await User.find(filter)
+    .select(baseSelect)
+    .sort({ _id: 1 })
+    .limit(lim + 1)
+    .lean();
+
+  const items = docs.slice(0, lim);
+  const nextCursor = docs.length > lim ? String(docs[lim]._id) : undefined;
+
+  return { items, nextCursor };
+};

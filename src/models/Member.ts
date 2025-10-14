@@ -100,5 +100,5 @@ const memberSchema = new Schema<IMember>(
   },
   { timestamps: true }
 );
-
+memberSchema.index({ firstName: "text", lastName: "text", email: "text", phone: "text" });
 export default mongoose.model<IMember>("Member", memberSchema);

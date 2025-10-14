@@ -149,3 +149,16 @@ export async function selfRegisterLong(req: Request, res: Response) {
     res.status(400).json({ message: e.message });
   }
 }
+
+export const searchMembers = async (req: Request, res: Response) => {
+  try {
+    const { churchId, q = "", limit, cursor } = req.query as any;
+    const result = await memberService.searchMembers(
+      { churchId, q, limit: limit ? Number(limit) : 30, cursor },
+      req.user as AuthUser | undefined
+    );
+    res.json(result);
+  } catch (e: any) {
+    res.status(400).json({ message: e.message || "Search failed" });
+  }
+};

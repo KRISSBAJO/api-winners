@@ -97,6 +97,12 @@ router.post(
   Ctrl.updateConsent
 );
 
+router.get(
+  "/cadences",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.FOLLOWUP_READ] }),
+  Ctrl.listCadences
+);
 // Cadence
 router.post(
   "/:id/cadence",

@@ -95,32 +95,44 @@ export class FollowupService {
     return doc;
   }
 
-  async openCase(
-    payload: {
-      memberId?: string;
-      prospect?: { firstName: string; lastName?: string; email?: string; phone?: string; source?: string };
-      churchId: string;
-      type: "newcomer" | "absentee" | "evangelism" | "care";
-      reason?: string;
-      openedBy: string;
-      cadenceId?: string;
-      assignedTo?: string;
-      tags?: string[];
-      consent?: { email?: boolean; sms?: boolean; call?: boolean };
-    },
-    actor?: AuthUser
-  ) {
-    enforceChurchWrite(payload.churchId, actor);
-    const doc = await FollowUpCase.create({
-      ...payload,
-      status: "open",
-      tags: payload.tags || [],
-      consent: { ...(payload.consent || {}), updatedAt: new Date() },
-      currentStepIndex: 0,
-      engagementScore: 0,
-    });
-    return doc;
+  // src/services/followup.service.ts
+
+// make openedBy optional in the payload type
+async openCase(
+  payload: {
+    memberId?: string;
+    prospect?: { firstName: string; lastName?: string; email?: string; phone?: string; source?: string };
+    churchId: string;
+    type: "newcomer" | "absentee" | "evangelism" | "care";
+    reason?: string;
+    openedBy?: string;                    // <- optional here
+    cadenceId?: string;
+    assignedTo?: string;
+    tags?: string[];
+    consent?: { email?: boolean; sms?: boolean; call?: boolean };
+  },
+  actor?: AuthUser
+) {
+  enforceChurchWrite(payload.churchId, actor);
+
+  // derive openedBy from the authenticated user if not provided
+  const openedBy = payload.openedBy ?? String(actor?._id ?? actor?.id);
+  if (!openedBy) {
+    throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
   }
+
+  const doc = await FollowUpCase.create({
+    ...payload,
+    openedBy,                            // <- always persisted
+    status: "open",
+    tags: payload.tags || [],
+    consent: { ...(payload.consent || {}), updatedAt: new Date() },
+    currentStepIndex: 0,
+    engagementScore: 0,
+  });
+
+  return doc;
+}
 
   async updateCase(
     id: string,
@@ -283,6 +295,19 @@ export class FollowupService {
       { $inc: { engagementScore: delta }, status: "in_progress" }
     );
     return a;
+  }
+
+   async listCadences(actor?: AuthUser) {
+    if (!actor) throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
+    // church-scoped cadences + global cadences
+    const q = actor.churchId
+      ? { $or: [{ churchId: null }, { churchId: oid(actor.churchId) }] }
+      : { churchId: null };
+
+    return FollowUpCadence.find(q)
+      .select("_id name type steps.length") // keep payload light
+      .sort({ name: 1 })
+      .lean();
   }
 
   /* Summary KPIs (simple version) */

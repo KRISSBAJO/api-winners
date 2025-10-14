@@ -91,3 +91,17 @@ export const updateUserAdmin = async (req: Request, res: Response) => {
     res.status(status).json({ message: err.message });
   }
 };
+
+export const listUsersByChurch = async (req: Request, res: Response) => {
+  try {
+    const actor = requireUser(req);
+    const { q, limit, cursor } = req.query as any;
+    const data = await UserService.getUsersByChurch(req.params.churchId, actor, {
+      q, limit: limit ? Number(limit) : undefined, cursor,
+    });
+    res.json(data);
+  } catch (err: any) {
+    const status = /forbidden/i.test(err.message) ? 403 : (err.statusCode || 400);
+    res.status(status).json({ message: err.message });
+  }
+};

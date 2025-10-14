@@ -566,6 +566,99 @@ If you didn't expect this, you can ignore this message.`;
   const created = await Member.create({ ...base, ...parsed });
   return created;
 }
+
+async searchMembers(
+  params: { churchId?: string; q?: string; limit?: number; cursor?: string },
+  actor?: AuthUser
+) {
+  const { churchId, q = "", limit = 30, cursor } = params || {};
+  const lim = Math.min(Number(limit) || 30, 50);
+
+  // ----- scope -----
+  const scope = buildScopeFilter(actor);
+  const base: any = {};
+  if (churchId) base.churchId = oid(churchId);
+
+  // cursor = last _id (stable)
+  if (cursor) base._id = { $gt: new mongoose.Types.ObjectId(cursor) };
+
+  const text = String(q).trim();
+
+  // If national/district scope is required, we need lookup pipeline.
+  const needsLookup = "__districtId" in scope || ("__requireLookup" in scope && actor?.nationalChurchId);
+
+  if (needsLookup) {
+    const pipeline: any[] = [];
+
+    // cursor & churchId in pipeline
+    const matchStage: any = { ...base };
+    pipeline.push({ $match: matchStage });
+
+    // search conditions
+    if (text) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { firstName: { $regex: text, $options: "i" } },
+            { lastName:  { $regex: text, $options: "i" } },
+            { email:     { $regex: text, $options: "i" } },
+            { phone:     { $regex: text, $options: "i" } },
+          ],
+        },
+      });
+    }
+
+    // join church (for district/national narrowing)
+    pipeline.push(
+      { $lookup: { from: "churches", localField: "churchId", foreignField: "_id", as: "church" } },
+      { $unwind: "$church" },
+    );
+
+    if ("__districtId" in scope) {
+      pipeline.push({ $match: { "church.districtId": oid(scope.__districtId as string) } });
+    } else if ("__requireLookup" in scope && actor?.nationalChurchId) {
+      pipeline.push(
+        { $lookup: { from: "districts", localField: "church.districtId", foreignField: "_id", as: "district" } },
+        { $unwind: "$district" },
+        { $match: { "district.nationalChurchId": oid(actor.nationalChurchId) } },
+      );
+    }
+
+    pipeline.push(
+      { $sort: { _id: 1 } },
+      { $limit: lim + 1 },
+      { $project: { _id: 1, firstName: 1, lastName: 1, email: 1, phone: 1 } },
+    );
+
+    const docs = await Member.aggregate(pipeline);
+    const items = docs.slice(0, lim);
+    const nextCursor = docs.length > lim ? String(docs[lim]._id) : undefined;
+    return { items, nextCursor };
+  }
+
+  // Simple path (site admin or church scope)
+  const find: any = { ...base };
+  if (text) {
+    Object.assign(find, {
+      $or: [
+        { firstName: new RegExp(text, "i") },
+        { lastName:  new RegExp(text, "i") },
+        { email:     new RegExp(text, "i") },
+        { phone:     new RegExp(text, "i") },
+      ],
+    });
+  }
+
+  const docs = await Member.find(find)
+    .select("_id firstName lastName email phone")
+    .sort({ _id: 1 })
+    .limit(lim + 1);
+
+  const items = docs.slice(0, lim);
+  const nextCursor = docs.length > lim ? String(docs[lim]._id) : undefined;
+  return { items, nextCursor };
+}
+
 }
 
 export default new MemberService();

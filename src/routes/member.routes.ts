@@ -9,6 +9,7 @@ import {
   verifySelfReg,
   selfRegisterShort,
   selfRegisterLong,
+  searchMembers,
 } from "../controllers/member.controller";
 
 const upload = multer({ dest: "uploads/" });
@@ -266,6 +267,35 @@ router.post(
   authorize({ anyPermission: [PERMISSIONS.MEMBER_UPLOAD] }),
   upload.single("file"),
   Ctrl.uploadMembers
+);
+
+/**
+ *  @openapi
+ * /members/search:
+ *  get:
+ *   summary: Search members by name, email, or phone
+ *    tags: [Members]
+ *    parameters:
+ *      - in: query
+ *        name: q
+ *      required: true
+ *     schema:
+ *       type: string
+ *      example: John
+ *   description: Search term to match against first name, last name, email, or phone
+ *   responses:
+ *      200:
+ *          description: List of matching members
+ *       content:
+ *          application/json:
+ * 
+ * 
+ */
+router.get(
+  "/search",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.MEMBER_READ] }),
+  searchMembers
 );
 
 /**

@@ -11,6 +11,7 @@ import {
   toggleActive,
   deleteUser,
   createUser, 
+  listUsersByChurch
 } from "../controllers/user.controller";
 
 const router = Router();
@@ -68,6 +69,13 @@ router.get(
   authenticate(),
   authorize({ anyPermission: [PERMISSIONS.USER_READ] }),
   getUser
+);
+
+router.get(
+  "/by-church/:churchId",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.USER_READ] }),
+  listUsersByChurch
 );
 
 /**
