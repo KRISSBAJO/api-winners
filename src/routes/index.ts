@@ -13,6 +13,7 @@ import roleRoutes from "./role.routes";
 import notificationRoutes from "./notification.routes";
 import pastorRoutes from "./pastor.routes";
 import followUpRoute from "./followup.routes";
+import cellRoutes from "./cell.routes";
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.use("/roles", roleRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/pastors", pastorRoutes);
 router.use("/followup", followUpRoute);
+router.use("/cells", cellRoutes);
 
 
 export default router;
