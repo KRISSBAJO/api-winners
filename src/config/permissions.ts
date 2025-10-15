@@ -125,6 +125,9 @@ export const PERMISSIONS = {
   CELL_REPORT_DELETE: "cell.report.delete",
   CELL_REPORT_UPDATE: "cell.report.update",
   CELL_ANALYTICS: "cell.analytics",
+
+  // ADMIN ONLY - for backend/system use
+  ADMIN: "admin.dashboard",
   
 
   // (optional) messaging

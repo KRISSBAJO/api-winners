@@ -14,6 +14,7 @@ import notificationRoutes from "./notification.routes";
 import pastorRoutes from "./pastor.routes";
 import followUpRoute from "./followup.routes";
 import cellRoutes from "./cell.routes";
+import demoRoutes from "./demo.routes";
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.use("/notifications", notificationRoutes);
 router.use("/pastors", pastorRoutes);
 router.use("/followup", followUpRoute);
 router.use("/cells", cellRoutes);
+router.use("/demo", demoRoutes);
 
 
 export default router;
