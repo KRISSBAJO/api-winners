@@ -2,7 +2,9 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ICellMeeting extends Document {
-  churchId: Types.ObjectId;
+  nationalChurchId?: Types.ObjectId;
+  districtId?: Types.ObjectId;
+  churchId: Types.ObjectId;   
   cellId: Types.ObjectId;         // CellGroup._id
   title?: string;
   scheduledFor: Date;             // scheduled meeting date/time
@@ -14,6 +16,8 @@ export interface ICellMeeting extends Document {
 }
 
 const cellMeetingSchema = new Schema<ICellMeeting>({
+  nationalChurchId: { type: Schema.Types.ObjectId, ref: "NationalChurch", index: true },
+  districtId: { type: Schema.Types.ObjectId, ref: "District", index: true },
   churchId: { type: Schema.Types.ObjectId, ref: "Church", required: true, index: true },
   cellId:   { type: Schema.Types.ObjectId, ref: "CellGroup", required: true, index: true },
   title:    { type: String },

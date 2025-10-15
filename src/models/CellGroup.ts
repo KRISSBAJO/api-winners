@@ -2,6 +2,8 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ICellGroup extends Document {
+  nationalChurchId?: Types.ObjectId;
+  districtId?: Types.ObjectId;
   churchId: Types.ObjectId;
   name: string;            // public name
   title?: string;          // optional subtitle
@@ -17,6 +19,8 @@ export interface ICellGroup extends Document {
 }
 
 const cellGroupSchema = new Schema<ICellGroup>({
+  nationalChurchId: { type: Schema.Types.ObjectId, ref: "NationalChurch", index: true },
+  districtId: { type: Schema.Types.ObjectId, ref: "District", index: true },
   churchId: { type: Schema.Types.ObjectId, ref: "Church", required: true, index: true },
   name: { type: String, required: true },
   title: { type: String },

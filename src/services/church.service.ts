@@ -171,28 +171,50 @@ export async function getChurchById(id: string, actor?: AuthUser) {
 /* WRITES                                                  */
 /* ------------------------------------------------------- */
 
+// createChurch
 export async function createChurch(data: any, actor?: AuthUser) {
   if (!data?.districtId) throw new Error("districtId is required");
 
   const allow = await canManageDistrict(actor, String(data.districtId));
   if (!allow) throw new Error("Forbidden");
 
-  // Optionally prevent church-level roles from creating at all
-  // (canManageDistrict already blocks them)
-  return Church.create(data);
+  const district = await District.findById(data.districtId).select("nationalChurchId");
+  if (!district) throw new Error("District not found");
+
+  const payload = {
+    ...data,
+    nationalChurchId: district.nationalChurchId, // <- denormalize here
+  };
+
+  return Church.create(payload);
 }
 
+
+// updateChurch
 export async function updateChurch(id: string, patch: any, actor?: AuthUser) {
   const allow = await canManageChurchDoc(actor, id);
   if (!allow) throw new Error("Forbidden");
 
-  // prevent changing district unless the actor can manage the *new* district too
-  if (patch?.districtId && !(await canManageDistrict(actor, String(patch.districtId)))) {
-    throw new Error("Forbidden to move church to that district");
+  const updates: any = { ...patch };
+
+  if (patch?.districtId) {
+    const canMove = await canManageDistrict(actor, String(patch.districtId));
+    if (!canMove) throw new Error("Forbidden to move church to that district");
+
+    const district = await District.findById(patch.districtId).select("nationalChurchId");
+    if (!district) throw new Error("District not found");
+
+    updates.nationalChurchId = district.nationalChurchId; // <- keep lineage in sync
   }
 
-  return Church.findByIdAndUpdate(id, patch, { new: true });
+  // Never let clients set nationalChurchId alone (prevents mismatches)
+  if ("nationalChurchId" in updates && !patch?.districtId) {
+    delete updates.nationalChurchId;
+  }
+
+  return Church.findByIdAndUpdate(id, updates, { new: true });
 }
+
 
 export async function deleteChurch(id: string, actor?: AuthUser) {
   const allow = await canManageChurchDoc(actor, id);

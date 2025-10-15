@@ -7,50 +7,22 @@ import * as Ctrl from "../controllers/cell.controller";
 
 const router = Router();
 
-/* Cells */
+/* ===== Collection ===== */
 router.get(
   "/",
   authenticate(),
   authorize({ anyPermission: [PERMISSIONS.CELL_READ] }),
   Ctrl.listCells
 );
-router.get(
-  "/:id",
-  authenticate(),
-  authorize({ anyPermission: [PERMISSIONS.CELL_READ] }),
-  Ctrl.getCell
-);
+
 router.post(
   "/",
   authenticate(),
   authorize({ anyPermission: [PERMISSIONS.CELL_CREATE] }),
   Ctrl.createCell
 );
-router.put(
-  "/:id",
-  authenticate(),
-  authorize({ anyPermission: [PERMISSIONS.CELL_UPDATE] }),
-  Ctrl.updateCell
-);
-router.delete(
-  "/:id",
-  authenticate(),
-  authorize({ anyPermission: [PERMISSIONS.CELL_DELETE] }),
-  Ctrl.deleteCell
-);
-/* Members management */
-router.post(
-  "/:id/members",
-  authenticate(),
-  authorize({ anyPermission: [PERMISSIONS.CELL_UPDATE] }),
-  Ctrl.addMembers
-);
-router.delete(
-  "/:id/members/:memberId",
-  authenticate(),
-  authorize({ anyPermission: [PERMISSIONS.CELL_UPDATE] }),
-  Ctrl.removeMember
-);
+
+/* ===== Static prefixes FIRST (avoid being captured by '/:id') ===== */
 
 /* Meetings */
 router.get(
@@ -66,13 +38,13 @@ router.post(
   Ctrl.scheduleMeeting
 );
 router.put(
-  "/meetings/:id",
+  "/meetings/:id([0-9a-fA-F]{24})",
   authenticate(),
   authorize({ anyPermission: [PERMISSIONS.CELL_MEETING_UPDATE] }),
   Ctrl.updateMeeting
 );
 router.delete(
-  "/meetings/:id",
+  "/meetings/:id([0-9a-fA-F]{24})",
   authenticate(),
   authorize({ anyPermission: [PERMISSIONS.CELL_MEETING_DELETE] }),
   Ctrl.deleteMeeting
@@ -91,11 +63,63 @@ router.post(
   authorize({ anyPermission: [PERMISSIONS.CELL_REPORT_SUBMIT] }),
   Ctrl.submitReport
 );
+
+router.put(
+  "/reports/:id([0-9a-fA-F]{24})",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_REPORT_UPDATE] }),
+  Ctrl.updateReport
+);
+
+router.delete(
+  "/reports/:id([0-9a-fA-F]{24})",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_REPORT_DELETE] }),
+  Ctrl.deleteReport
+);
+
+/* Analytics */
 router.get(
   "/analytics",
   authenticate(),
   authorize({ anyPermission: [PERMISSIONS.CELL_ANALYTICS] }),
   Ctrl.analytics
+);
+
+/* ===== Item-scoped routes (constrain to ObjectId) ===== */
+
+/* Members management */
+router.post(
+  "/:id([0-9a-fA-F]{24})/members",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_UPDATE] }),
+  Ctrl.addMembers
+);
+router.delete(
+  "/:id([0-9a-fA-F]{24})/members/:memberId([0-9a-fA-F]{24})",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_UPDATE] }),
+  Ctrl.removeMember
+);
+
+/* Single item — KEEP LAST */
+router.get(
+  "/:id([0-9a-fA-F]{24})",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_READ] }),
+  Ctrl.getCell
+);
+router.put(
+  "/:id([0-9a-fA-F]{24})",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_UPDATE] }),
+  Ctrl.updateCell
+);
+router.delete(
+  "/:id([0-9a-fA-F]{24})",
+  authenticate(),
+  authorize({ anyPermission: [PERMISSIONS.CELL_DELETE] }),
+  Ctrl.deleteCell
 );
 
 export default router;

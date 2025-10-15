@@ -270,26 +270,29 @@ router.post(
 );
 
 /**
- *  @openapi
+ * @openapi
  * /members/search:
- *  get:
- *   summary: Search members by name, email, or phone
- *    tags: [Members]
- *    parameters:
- *      - in: query
- *        name: q
- *      required: true
- *     schema:
- *       type: string
- *      example: John
- *   description: Search term to match against first name, last name, email, or phone
- *   responses:
- *      200:
- *          description: List of matching members
- *       content:
- *          application/json:
- * 
- * 
+ *   get:
+ *     summary: Search members by name, email, or phone
+ *     description: Search term to match against first name, last name, email, or phone.
+ *     tags:
+ *       - Members
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: John
+ *     responses:
+ *       200:
+ *         description: List of matching members
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Member'
  */
 router.get(
   "/search",
@@ -297,6 +300,7 @@ router.get(
   authorize({ anyPermission: [PERMISSIONS.MEMBER_READ] }),
   searchMembers
 );
+
 
 /**
  * @openapi

@@ -1,9 +1,10 @@
 // src/controllers/cell.controller.ts
 import { Request, Response } from "express";
 import cellService from "../services/cell.service";
-import { PERMISSIONS } from "../config/permissions";
-import { authorize } from "../middleware/authorize";
-import { authenticate } from "../middleware/auth";
+import CellAttendanceReport, { ICellAttendanceReport } from "../models/CellAttendanceReport";
+import { Types } from "mongoose";
+
+const oid = (v: string | Types.ObjectId) => typeof v === "string" ? new Types.ObjectId(v) : v;
 
 export const listCells = async (req: Request, res: Response) => {
   const items = await cellService.listCells(req.user as any, req.query);
@@ -98,11 +99,67 @@ export const submitReport = async (req: Request, res: Response) => {
     res.status(/forbidden/i.test(e.message) ? 403 : 400).json({ message: e.message });
   }
 };
-export const listReports = async (req: Request, res: Response) => {
-  const items = await cellService.listReports(req.query, req.user as any);
-  res.json(items);
+const isOid = (v: unknown): v is string =>
+  typeof v === "string" && Types.ObjectId.isValid(v);
+
+export const listReports = async (req: Request, res: Response, next: Function) => {
+  try {
+    const { cellId, churchId, districtId, nationalChurchId, nationalId, from, to } = req.query;
+
+    const params: any = {};
+    if (isOid(cellId))       params.cellId = cellId;
+    if (isOid(churchId))     params.churchId = churchId;
+    if (isOid(districtId))   params.districtId = districtId;
+
+    // support either ?nationalChurchId or ?nationalId
+    const nat = typeof nationalChurchId === "string" ? nationalChurchId : (nationalId as string | undefined);
+    if (isOid(nat)) params.nationalChurchId = nat;
+
+    if (typeof from === "string") params.from = from;
+    if (typeof to === "string")   params.to   = to;
+
+    const items = await cellService.listReports(params, req.user as any);
+    res.json(items);
+  } catch (e) {
+    next(e);
+  }
 };
 export const analytics = async (req: Request, res: Response) => {
   const data = await cellService.analytics({ churchId: req.query.churchId as string, from: req.query.from as string, to: req.query.to as string });
   res.json(data);
+};
+
+
+export const updateReport = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const body = req.body as Partial<ICellAttendanceReport>;
+    // authorize by church on current report
+    const current = await CellAttendanceReport.findById(id).select("churchId meetingId").lean();
+    if (!current) return res.status(404).json({ message: "Report not found" });
+    // optional: ensure canWriteChurch(req.user, current.churchId)
+    const updated = await CellAttendanceReport.findByIdAndUpdate(
+      id,
+      { $set: {
+        totals: body.totals,
+        presentMemberIds: (body.presentMemberIds ?? []).map((v:any)=>oid(v)),
+        comments: body.comments,
+        date: body.date, // if you allow date correction
+      }},
+      { new: true }
+    );
+    res.json(updated);
+  } catch (e:any) {
+    res.status(/forbidden/i.test(e.message) ? 403 : 400).json({ message: e.message });
+  }
+};
+
+export const deleteReport = async (req: Request, res: Response) => {
+  try {
+    const ok = await cellService.useDeleteReport(req.params.id, req.user as any);
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(/forbidden/i.test(e.message) ? 403 : 400).json({ message: e.message });
+  }
 };

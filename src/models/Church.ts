@@ -1,6 +1,7 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IChurch extends Document {
+  nationalChurchId?: Types.ObjectId;
   districtId: mongoose.Types.ObjectId;
   name: string;
   churchId: string; // short code like "WCN001"
@@ -20,7 +21,8 @@ export interface IChurch extends Document {
 
 const churchSchema = new Schema<IChurch>(
   {
-    districtId: { type: Schema.Types.ObjectId, ref: "District", required: true },
+   districtId:       { type: Schema.Types.ObjectId, ref: "District", index: true },
+   nationalChurchId: { type: Schema.Types.ObjectId, ref: "NationalChurch", index: true },
     name: { type: String, required: true },
     churchId: { type: String, required: true, unique: true },
     pastor: { type: String, required: true },
