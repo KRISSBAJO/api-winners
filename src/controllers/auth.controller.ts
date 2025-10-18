@@ -3,6 +3,7 @@ import * as AuthService from "../services/auth.service";
 import { ROLE_MATRIX } from "../config/permissions";
 import User from "../models/User";
 import { requireUser } from "../utils/http";
+import { getEffectivePermissionsForUser, getPermissionsForRole } from "../lib/rolePerms";
 
 // REGISTER
 export const register = async (req: any, res: Response) => {
@@ -35,7 +36,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const data = await AuthService.loginUser(email, password);
-    res.json(data);
+    res.json(data); // contains user, permissions (effective), delegatedScopes, tokens
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -59,8 +60,13 @@ export const me = async (req: any, res: Response) => {
   try {
     const user = await User.findById(req.user.id).select("-password").populate("churchId");
     if (!user) return res.status(404).json({ message: "User not found" });
-    const permissions = ROLE_MATRIX[user.role] || [];
-    res.json({ ...user.toObject(), permissions });
+
+    const { permissions, delegatedScopes } = await getEffectivePermissionsForUser({
+      id: String(user._id),
+      role: user.role,
+    });
+
+    res.json({ ...user.toObject(), permissions, delegatedScopes });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

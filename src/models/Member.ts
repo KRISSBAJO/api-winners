@@ -10,6 +10,7 @@ export interface IMember extends Document {
   maritalStatus?: "Single" | "Married" | "Divorced" | "Widowed";
   spouseName?: string;
   weddingAnniversary?: Date;
+  photoPublicId?: string;
 
   email?: string;
   phone?: string;
@@ -96,6 +97,7 @@ const memberSchema = new Schema<IMember>(
     },
 
     photoUrl: String,
+    photoPublicId: String,
     notes: String,
   },
   { timestamps: true }

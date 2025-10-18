@@ -440,6 +440,7 @@ router
   .put(
     authenticate(),
     authorize({ anyPermission: [PERMISSIONS.MEMBER_UPDATE] }),
+    upload.single("photo"), 
     Ctrl.updateMember
   )
   .delete(

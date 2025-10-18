@@ -1,29 +1,25 @@
 // src/models/Notification.ts
 import { Schema, model, Types, Document } from "mongoose";
+import { NOTIF_KINDS, type NotifKind } from "./notificationKinds";
 
 export type NotifScope = "user" | "church" | "district" | "national";
-export type NotifKind =
-  | "event.created" | "event.updated" | "event.commented"
-  | "attendance.upserted"
-  | "member.created" | "member.updated"
-  | "system";
 
 export interface INotification extends Document {
   kind: NotifKind;
   title: string;
   message?: string;
-  actorId?: Types.ObjectId;        // who triggered it
+  actorId?: Types.ObjectId;
   actorName?: string;
-  link?: string;                   // deeplink (dashboard/events/123)
+  link?: string;
   scope: NotifScope;
-  scopeRef?: Types.ObjectId;       // the church/district/national/user id
-  recipients?: Types.ObjectId[];   // optional explicit users
-  readBy: Types.ObjectId[];        // users who marked read
+  scopeRef?: Types.ObjectId;
+  recipients?: Types.ObjectId[];
+  readBy: Types.ObjectId[];
   createdAt: Date;
 }
 
 const schema = new Schema<INotification>({
-  kind: { type: String, required: true, index: true },
+  kind: { type: String, required: true, index: true, enum: NOTIF_KINDS },
   title: { type: String, required: true },
   message: String,
   actorId: { type: Schema.Types.ObjectId, ref: "User" },

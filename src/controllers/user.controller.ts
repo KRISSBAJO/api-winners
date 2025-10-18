@@ -2,6 +2,8 @@
 import { Request, Response } from "express";
 import * as UserService from "../services/user.service";
 import { requireUser, getUploadFile } from "../utils/http";
+import fs from "fs";
+import { uploadImage, deleteImage } from "../config/cloudinary";
 
 // GET ALL USERS
 export const listUsers = async (req: Request, res: Response) => {
@@ -83,7 +85,8 @@ export const deleteUser = async (req: Request, res: Response) => {
 export const updateUserAdmin = async (req: Request, res: Response) => {
   try {
     const actor = requireUser(req);
-    const updated = await UserService.updateUserAdmin(req.params.id, req.body, actor);
+    const file = getUploadFile(req); // <— NEW
+    const updated = await UserService.updateUserAdmin(req.params.id, req.body, actor, file);
     if (!updated) return res.status(404).json({ message: "User not found" });
     res.json(updated);
   } catch (err: any) {

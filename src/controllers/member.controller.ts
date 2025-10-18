@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import memberService from "../services/member.service";
 import type { AuthUser } from "../types/express";
+import { getUploadFile } from "../utils/http";
+import { requireUser } from "../utils/http";
 
 export const createMember = async (req: Request, res: Response) => {
   try {
@@ -24,11 +26,14 @@ export const getMemberById = async (req: Request, res: Response) => {
 
 export const updateMember = async (req: Request, res: Response) => {
   try {
-    const updated = await memberService.updateMember(req.params.id, req.body, req.user as AuthUser | undefined);
+    const actor = requireUser(req);
+    const file = getUploadFile(req); // <- Multer file (if any)
+    const updated = await memberService.updateMember(req.params.id, req.body, actor, file);
     if (!updated) return res.status(404).json({ message: "Member not found" });
     res.json(updated);
-  } catch (e: any) {
-    res.status(/forbidden/i.test(e.message) ? 403 : 400).json({ message: e.message });
+  } catch (err: any) {
+    const status = /forbidden/i.test(err.message) ? 403 : (err.statusCode || 400);
+    res.status(status).json({ message: err.message });
   }
 };
 

@@ -30,6 +30,8 @@ export interface AuthUser {
 
   /** Optional flags you might add later */
   permissions?: string[];
+
+  delegatedScopes?: DelegatedScope[];
 }
 
 declare module "express-serve-static-core" {

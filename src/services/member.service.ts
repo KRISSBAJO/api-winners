@@ -1,15 +1,16 @@
 import Member, { IMember } from "../models/Member";
 import mongoose, { Types } from "mongoose";
+import { uploadImage, deleteImage } from "../config/cloudinary";
 import fs from "fs";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import type { AuthUser } from "../types/express";
-import { signSelfRegToken, verifySelfRegToken, type SelfRegPayload } from "../utils/selfRegToken";
+import { signSelfRegToken, verifySelfRegToken } from "../utils/selfRegToken";
 import { mailer } from "../utils/mailer";
 import { notifySafe } from "../realtime/notifySafe";
-import dotenv from "dotenv";
+
 /* ------------------------- helpers: scope & utils ------------------------- */
 
 const shortSchema = z.object({
@@ -235,14 +236,63 @@ export class MemberService {
   }
 
   /** Update member details (scope-aware) */
- async updateMember(id: string, data: Partial<IMember>, actor?: AuthUser) {
+ async updateMember(
+  id: string,
+  data: Partial<IMember>,
+  actor?: AuthUser,
+  file?: Express.Multer.File
+) {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
-  const current = await Member.findById(id).select("firstName lastName churchId");
+
+  const current = await Member.findById(id).select("firstName lastName churchId photoPublicId");
   if (!current) return null;
   if (!canWriteChurch(String(current.churchId), actor)) throw new Error("Forbidden");
 
-  const updated = await Member.findByIdAndUpdate(id, data, { new: true });
+  let photoUrl: string | undefined;
+  let photoPublicId: string | undefined;
 
+  if (file?.path) {
+    const uploaded = await uploadImage(file.path, "dominion_connect/members");
+    photoUrl = uploaded.url;
+    photoPublicId = uploaded.publicId;
+    try { fs.unlinkSync(file.path); } catch {}
+  }
+
+  const patch: Partial<IMember> = {
+    // allow safe fields (add/remove as needed)
+    firstName: data.firstName,
+    middleName: data.middleName,
+    lastName:  data.lastName,
+    phone:     (data as any).phone,   // if you keep phone on member
+    gender:    data.gender,
+    dob:       data.dob as any,
+    maritalStatus: data.maritalStatus,
+    spouseName:    data.spouseName,
+    weddingAnniversary: data.weddingAnniversary as any,
+    address:   data.address,
+    membershipStatus: data.membershipStatus,
+    joinDate:  data.joinDate as any,
+    role:      data.role,
+    volunteerGroups: data.volunteerGroups,
+    isLeader:  data.isLeader,
+    household: data.household,
+    notes:     data.notes,
+    ...(photoUrl ? { photoUrl } : {}),
+    ...(photoPublicId ? { photoPublicId } : {}),
+  };
+
+  const updated = await Member.findByIdAndUpdate(id, patch, { new: true })
+    .populate({
+      path: "churchId",
+      populate: { path: "districtId", populate: { path: "nationalChurchId" } },
+    });
+
+  // delete old image if replaced
+  if (photoPublicId && current.photoPublicId && current.photoPublicId !== photoPublicId) {
+    try { await deleteImage(current.photoPublicId); } catch {}
+  }
+
+  // notify (your existing notifySafe call)
   notifySafe({
     kind: "member",
     title: "Member updated",
@@ -256,7 +306,7 @@ export class MemberService {
       verb: "updated",
       churchId: String(current.churchId),
       target: { type: "member", id: String(id), name: `${current.firstName} ${current.lastName}` },
-      meta: { fields: Object.keys(data || {}) }, // optional detail
+      meta: { fields: Object.keys(patch).filter(Boolean) },
     },
   });
 

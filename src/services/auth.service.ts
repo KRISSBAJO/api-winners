@@ -8,6 +8,8 @@ import Notification from "../models/Notification"; // assuming it exists as in y
 import { mailer } from "../utils/mailer";          // moved mailer into utils/mailer for reusability
 import { Types } from "mongoose";
 import { buildResetPasswordUrl } from "../utils/url";
+import { getPermissionsForRole } from "../lib/rolePerms";
+import { getEffectivePermissionsForUser } from "../lib/rolePerms";
 
 const ACCESS_EXPIRES_IN = "1d";
 const REFRESH_EXPIRES_IN = "7d";
@@ -98,7 +100,6 @@ export const registerUser = async (data: Partial<IUser>) => {
   const pwHash = await hash(password);
   const user = await User.create({ ...data, password: pwHash });
 
-  // record initial password as history
   await recordPasswordHistory(user._id, pwHash);
 
   const tokens = generateTokens(user);
@@ -107,7 +108,9 @@ export const registerUser = async (data: Partial<IUser>) => {
     .populate("churchId", "name")
     .populate("districtId", "name")
     .populate("nationalChurchId", "name");
-  return { user: safeUser, ...tokens };
+
+  const permissions = await getPermissionsForRole(user.role); // 👈 add this
+  return { user: safeUser, permissions, ...tokens };          // 👈 return perms
 };
 
 export const loginUser = async (email: string, password: string) => {
@@ -116,12 +119,20 @@ export const loginUser = async (email: string, password: string) => {
   if (!(await sameHash(password, user.password))) throw new Error("Invalid credentials");
 
   const tokens = generateTokens(user);
+
   const safeUser = await User.findById(user._id)
     .select("-password")
     .populate("churchId", "name")
     .populate("districtId", "name")
     .populate("nationalChurchId", "name");
-  return { user: safeUser, ...tokens };
+
+  // ⭐ effective = base role perms + active delegations (time + scope)
+  const { permissions, delegatedScopes } = await getEffectivePermissionsForUser({
+    id: String(user._id),
+    role: user.role,
+  });
+
+  return { user: safeUser, permissions, delegatedScopes, ...tokens };
 };
 
 export const refreshTokens = async (token: string) => {

@@ -185,6 +185,7 @@ router.put(
 router.put(
   "/:id",
   authenticate(),
+  upload.single("avatar"), 
   authorize({ anyPermission: [PERMISSIONS.USER_UPDATE] }),
   updateUserAdmin
 );

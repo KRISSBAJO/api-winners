@@ -1,6 +1,8 @@
 // src/services/user.service.ts
 import User, { IUser } from "../models/User";
+import fs from "fs";
 import { buildOrgScopeFilter, assertPayloadWithinScope } from "../middleware/scope";
+import { uploadImage, deleteImage } from "../config/cloudinary";
 import { pushNotif } from "../realtime/notify"; // <-- add this
 import bcrypt from "bcryptjs";
 
@@ -123,32 +125,46 @@ export const getUserById = async (id: string, actor?: any) => {
   return u;
 };
 
-export const updateProfile = async (userId: string, data: Partial<IUser>, _file?: Express.Multer.File) => {
-  // profile updates typically exclude password (keep it that way; have a dedicated change-password flow)
-  await User.findByIdAndUpdate(
-    userId,
-    {
-      firstName: data.firstName,
-      middleName: data.middleName,
-      lastName: data.lastName,
-      phone: data.phone,
-      // password intentionally not allowed here
-    },
-    { new: false }
-  );
+export const updateProfile = async (
+  userId: string,
+  data: Partial<IUser>,
+  file?: Express.Multer.File
+) => {
+  // fetch current to know existing avatarPublicId
+  const current = await User.findById(userId).select("avatar avatarPublicId");
+  if (!current) throw Object.assign(new Error("User not found"), { statusCode: 404 });
 
-  // optional: user-scoped notif
-  try {
-    await pushNotif({
-      kind: "user.updated",
-      title: "Profile updated",
-      message: "Your profile information was updated.",
-      scope: "user",
-      scopeRef: String(userId),
-    });
-  } catch (_) {}
+  let avatar: string | undefined;
+  let avatarPublicId: string | undefined;
 
-  return findOnePopulatedById(userId);
+  if (file?.path) {
+    // upload to Cloudinary
+    const uploaded = await uploadImage(file.path, "dominion_connect/avatars");
+    avatar = uploaded.url;
+    avatarPublicId = uploaded.publicId;
+
+    // cleanup tmp file
+    try { fs.unlinkSync(file.path); } catch {}
+  }
+
+  // build patch (only allow safe profile fields here)
+  const patch: Partial<IUser> = {
+    firstName: data.firstName,
+    middleName: data.middleName,
+    lastName:  data.lastName,
+    phone:     data.phone,
+    ...(avatar ? { avatar } : {}),
+    ...(avatarPublicId ? { avatarPublicId } : {}),
+  };
+
+  await User.findByIdAndUpdate(userId, patch, { new: false });
+
+  // if we replaced avatar, remove the old asset
+  if (avatarPublicId && current.avatarPublicId && current.avatarPublicId !== avatarPublicId) {
+    try { await deleteImage(current.avatarPublicId); } catch {}
+  }
+
+  return User.findById(userId).select(baseSelect).populate(USER_POPULATE).lean();
 };
 
 export const toggleActiveStatus = async (id: string, actor?: any) => {
@@ -224,19 +240,34 @@ export const deleteUser = async (id: string, actor?: any) => {
 
   return { ok: true };
 };
-
-export const updateUserAdmin = async (id: string, raw: Partial<IUser>, actor?: any) => {
-  const target = await User.findById(id);
+export const updateUserAdmin = async (
+  id: string,
+  raw: Partial<IUser>,
+  actor?: any,
+  file?: Express.Multer.File
+) => {
+  const target = await User.findById(id).select("churchId avatarPublicId");
   if (!target) return null;
 
   if (!isSite(actor)) assertSameChurchIfNotSite(actor, target.churchId);
 
-  if (!canAssignRole(actor, raw.role ?? target.role)) {
+  if (!canAssignRole(actor, raw.role ?? (target as any).role)) {
     throw Object.assign(new Error("Forbidden: cannot assign target role"), { statusCode: 403 });
   }
 
   const data = normalizePayloadForChurchAdmin(actor, raw);
   assertPayloadWithinScope(actor, { ...target.toObject(), ...data });
+
+  // Optional avatar upload (admin can replace user’s avatar)
+  let avatar: string | undefined;
+  let avatarPublicId: string | undefined;
+
+  if (file?.path) {
+    const uploaded = await uploadImage(file.path, "dominion_connect/avatars");
+    avatar = uploaded.url;
+    avatarPublicId = uploaded.publicId;
+    try { fs.unlinkSync(file.path); } catch {}
+  }
 
   const patch: Partial<IUser> = {
     firstName: data.firstName,
@@ -248,15 +279,21 @@ export const updateUserAdmin = async (id: string, raw: Partial<IUser>, actor?: a
     churchId: data.churchId,
     districtId: data.districtId,
     nationalChurchId: data.nationalChurchId,
-    // password: data.password (allowed) — will be hashed by the pre('findOneAndUpdate') hook if present
+    ...(avatar ? { avatar } : {}),
+    ...(avatarPublicId ? { avatarPublicId } : {}),
+    // password: data.password (allowed) — hashed by schema pre-hooks if present
   };
 
   await User.findByIdAndUpdate(id, patch, { new: false });
   const safe = await findOnePopulatedById(id);
 
+  // If avatar replaced, delete old
+  if (avatarPublicId && target.avatarPublicId && target.avatarPublicId !== avatarPublicId) {
+    try { await deleteImage(target.avatarPublicId); } catch {}
+  }
+
   // 🔔 notifs
   try {
-    // notify the user about key changes
     await pushNotif({
       kind: "user.updated",
       title: "Account updated",
@@ -267,7 +304,6 @@ export const updateUserAdmin = async (id: string, raw: Partial<IUser>, actor?: a
       actorName: `${actor?.firstName ?? ""} ${actor?.lastName ?? ""}`.trim() || "System",
     });
 
-    // org stream
     if (target.churchId) {
       await pushNotif({
         kind: "user.updated",

@@ -156,7 +156,7 @@ export const updateReport = async (req: Request, res: Response) => {
 
 export const deleteReport = async (req: Request, res: Response) => {
   try {
-    const ok = await cellService.useDeleteReport(req.params.id, req.user as any);
+    const ok = await cellService.deleteReport(req.params.id, req.user as any);
     if (!ok) return res.status(404).json({ message: "Not found" });
     res.json({ ok: true });
   } catch (e: any) {

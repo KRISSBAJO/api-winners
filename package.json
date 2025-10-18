@@ -19,6 +19,7 @@
     "mongoose": "^7.0.3",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.6",
+    "rrule": "^2.8.1",
     "socket": "^1.1.23",
     "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",

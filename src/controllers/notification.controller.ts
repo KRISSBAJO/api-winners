@@ -12,7 +12,7 @@ export async function list(req: Request, res: Response) {
   const q = {
     $or: [
       { scope: "user", scopeRef: userId },
-      ...(churchId ? [{ scope: "church", scopeRef: new Types.ObjectId(churchId) }] : []),
+      ...(churchId ? [{ scope: "church",   scopeRef: new Types.ObjectId(churchId) }]   : []),
       ...(districtId ? [{ scope: "district", scopeRef: new Types.ObjectId(districtId) }] : []),
       ...(nationalId ? [{ scope: "national", scopeRef: new Types.ObjectId(nationalId) }] : []),
       { recipients: userId },
@@ -20,10 +20,23 @@ export async function list(req: Request, res: Response) {
   };
 
   const skip = (Number(page) - 1) * Number(limit);
-  const [items, total] = await Promise.all([
-    Notification.find(q).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+
+  const [docs, total] = await Promise.all([
+    Notification.find(q).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
     Notification.countDocuments(q),
   ]);
+
+  // shape items with isRead flag
+  const items = docs.map((d: any) => ({
+    ...d,
+    _id: String(d._id),
+    actorId: d.actorId ? String(d.actorId) : undefined,
+    scopeRef: d.scopeRef ? String(d.scopeRef) : undefined,
+    recipients: (d.recipients ?? []).map((r: any) => String(r)),
+    readBy: undefined, // hide raw readBy array from client (optional)
+    isRead: (d.readBy ?? []).some((x: any) => String(x) === String(userId)),
+  }));
+
   res.json({ items, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
 }
 
@@ -33,7 +46,7 @@ export async function unreadCount(req: Request, res: Response) {
   const q = {
     $or: [
       { scope: "user", scopeRef: userId },
-      ...(churchId ? [{ scope: "church", scopeRef: new Types.ObjectId(churchId) }] : []),
+      ...(churchId ? [{ scope: "church",   scopeRef: new Types.ObjectId(churchId) }]   : []),
       ...(districtId ? [{ scope: "district", scopeRef: new Types.ObjectId(districtId) }] : []),
       ...(nationalId ? [{ scope: "national", scopeRef: new Types.ObjectId(nationalId) }] : []),
       { recipients: userId },
@@ -57,7 +70,7 @@ export async function markAllRead(req: Request, res: Response) {
   const q = {
     $or: [
       { scope: "user", scopeRef: userId },
-      ...(churchId ? [{ scope: "church", scopeRef: new Types.ObjectId(churchId) }] : []),
+      ...(churchId ? [{ scope: "church",   scopeRef: new Types.ObjectId(churchId) }]   : []),
       ...(districtId ? [{ scope: "district", scopeRef: new Types.ObjectId(districtId) }] : []),
       ...(nationalId ? [{ scope: "national", scopeRef: new Types.ObjectId(nationalId) }] : []),
       { recipients: userId },
