@@ -21,6 +21,13 @@ export const NOTIF_KINDS = [
   "member.updated",
   "member",
 
+  // pastors
+  "pastor.created",
+  "pastor.updated",
+  "pastor.deleted",
+  "pastor.assignmentClosed",
+  "pastor.assigned",
+
   // cells (add these if you use them anywhere)
   "cell.created",
   "cell.updated",
